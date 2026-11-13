@@ -2,9 +2,11 @@ FROM public.ecr.aws/d3j8x8q7/olympus-base-go:latest
 
 WORKDIR /app
 
-COPY . .
+COPY go.mod go.sum ./
 
 RUN go mod download
+
+COPY . .
 
 RUN go build -o /app/fsql ./cmd/fsql
 
