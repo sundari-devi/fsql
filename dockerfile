@@ -6,6 +6,9 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
+RUN go install github.com/jstemmer/go-junit-report/v2@latest
+ENV PATH="${PATH}:/root/go/bin"
+
 COPY . .
 
 RUN go build -o /app/fsql ./cmd/fsql
