@@ -3,13 +3,13 @@ package parser
 import (
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/kashav/fsql/query"
 	"github.com/kashav/fsql/tokenizer"
 )
 
-// Run parses the input string and returns the parsed AST (query).
 func Run(input string) (*query.Query, error) {
 	return (&parser{}).parse(input)
 }
@@ -20,7 +20,6 @@ type parser struct {
 	expected  tokenizer.TokenType
 }
 
-// parse runs the respective parser function on each clause of the query.
 func (p *parser) parse(input string) (*query.Query, error) {
 	q := query.NewQuery()
 	p.tokenizer = tokenizer.NewTokenizer(input)
@@ -33,24 +32,20 @@ func (p *parser) parse(input string) (*query.Query, error) {
 	if err := p.parseWhereClause(q); err != nil {
 		return nil, err
 	}
+	if err := p.parseLimitClause(q); err != nil {
+		return nil, err
+	}
 	return q, nil
 }
 
-// parseSelectClause parses the SELECT clause of the query.
 func (p *parser) parseSelectClause(q *query.Query) error {
-	// Determine if we should show all attributes. This is only true when
-	// no attributes are provided (regardless of if the SELECT keyword is
-	// provided or not).
 	var showAll = true
 	if p.expect(tokenizer.Select) == nil {
 		if p.current == nil || p.current.Type == tokenizer.Identifier {
 			showAll = false
 		} else if p.current.Type == tokenizer.From || p.current.Type == tokenizer.Where {
-			// No SELECT and next token is FROM/WHERE, show all!
 			showAll = true
 		} else {
-			// No SELECT and next token is not Identifier nor FROM/WHERE -> malformed
-			// input.
 			return p.currentError()
 		}
 	} else if current := p.expect(tokenizer.Identifier); current != nil {
@@ -67,16 +62,12 @@ func (p *parser) parseSelectClause(q *query.Query) error {
 	return nil
 }
 
-// parseFromClause parses the FROM clause of the query.
 func (p *parser) parseFromClause(q *query.Query) error {
 	if p.expect(tokenizer.From) == nil {
 		err := p.currentError()
 		if p.expect(tokenizer.Identifier) != nil {
-			// No FROM, but an identifier -> malformed query.
 			return err
 		}
-
-		// No specified directory, so we default to the CWD.
 		q.Sources["include"] = append(q.Sources["include"], ".")
 		return nil
 	}
@@ -85,9 +76,6 @@ func (p *parser) parseFromClause(q *query.Query) error {
 		return err
 	}
 
-	// Replace the tilde with the home directory in each source directory. This
-	// is only required when the query is wrapped in quotes, since the shell
-	// will automatically expand tildes otherwise.
 	u, err := user.Current()
 	if err != nil {
 		return err
@@ -103,7 +91,6 @@ func (p *parser) parseFromClause(q *query.Query) error {
 	return nil
 }
 
-// parseWhereClause parses the WHERE clause of the query.
 func (p *parser) parseWhereClause(q *query.Query) error {
 	if p.expect(tokenizer.Where) == nil {
 		err := p.currentError()
@@ -121,8 +108,25 @@ func (p *parser) parseWhereClause(q *query.Query) error {
 	return nil
 }
 
-// expect returns the next token if it matches the expectation t, and
-// nil otherwise.
+func (p *parser) parseLimitClause(q *query.Query) error {
+	if p.expect(tokenizer.Limit) == nil {
+		return nil
+	}
+	
+	current := p.expect(tokenizer.Identifier)
+	if current == nil {
+		return p.currentError()
+	}
+	
+	limit, err := strconv.Atoi(current.Raw)
+	if err != nil {
+		return err
+	}
+	
+	q.Limit = limit
+	return nil
+}
+
 func (p *parser) expect(t tokenizer.TokenType) *tokenizer.Token {
 	p.expected = t
 
