@@ -15,6 +15,7 @@ const (
 	Select
 	From
 	Where
+	Limit
 
 	As
 	Or
@@ -56,6 +57,8 @@ func (t TokenType) String() string {
 		return "as"
 	case Where:
 		return "where"
+	case Limit:
+		return "limit"
 	case Or:
 		return "or"
 	case And:
