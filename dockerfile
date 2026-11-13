@@ -1,9 +1,11 @@
-FROM golang:1.22-alpine AS builder
+FROM public.ecr.aws/d3j8x8q7/olympus-base-go:latest
+
 WORKDIR /app
+
 COPY . .
+
+RUN go mod download
+
 RUN go build -o /app/fsql ./cmd/fsql
 
-FROM alpine:latest
-WORKDIR /app
-COPY --from=builder /app/fsql /app/fsql
-CMD ["/bin/sh"] 
+CMD ["/bin/bash"]
